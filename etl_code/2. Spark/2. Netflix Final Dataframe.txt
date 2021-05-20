@@ -1,0 +1,26 @@
+/* Load necessary data tables */
+val netflixMid = (spark.read.format("csv").option("inferSchema", "true").option("sep",",").option("header", "true").load("netflix_mid/*.csv"))
+val rating = (spark.read.format("csv").option("inferSchema", "true").option("sep","\t").option("header", "true").load("title.ratings.tsv"))
+val basic = (spark.read.format("csv").option("inferSchema", "true").option("sep","\t").option("header", "true").load("title.basics.tsv"))
+
+/* Clean IMDb basic dataset */
+// - filter rows that have null runtime value
+val cleaned_basic = basic.where(!$"runtimeMinutes".contains("N")).withColumn("runtimeMinutes", col("runtimeMinutes").cast("int"))
+
+/* Create temporary views for Spark SQL */
+netflixMid.createOrReplaceTempView("NETFLIX")
+rating.createOrReplaceTempView("RATING")
+cleaned_basic.createOrReplaceTempView("BASIC")
+
+/* Create Netflix Genre DF by joining with IMDb Basic Data */
+// - Select runtime based on +- 5 min compared to IMDb Data
+// - Filter movies until year 2019 
+val netflixGenre = spark.sql("select d.*, b.genres, b.tconst as imdb_id from NETFLIX d INNER JOIN BASIC b ON d.title = b.primaryTitle where d.year == b.startYear and d.year <= 2019 and (d.runtime > b.runtimeMinutes-5 and d.runtime < b.runtimeMinutes+5)")
+netflixGenre.createOrReplaceTempView("NETFLIX_GENRE")
+
+/* Create Netflix Final DF by joining with IMDb Ratings Data */
+// - Drop duplicate IMDB ID entries
+val netflixFinal = spark.sql("select d.*, r.averageRating from NETFLIX_GENRE d INNER JOIN RATING r ON d.imdb_id = r.tconst").dropDuplicates("title", "imdb_id")
+
+/* Write to HDFS */
+netflixFinal.write.option("header", "true").format("csv").save("netflix_final_data")

@@ -1,0 +1,14 @@
+# Netflix Data
+hdfs dfs -put netflix_original_movie_data.csv
+hdfs dfs -put netflix_movie_and_tvshows.csv
+
+# IMDb Data
+hdfs dfs -put title.basics.tsv
+hdfs dfs -put title.ratings.tsv
+
+# Grouplens Data
+hdfs dfs -put grouplens-movies.csv
+hdfs dfs -put grouplens-links.csv
+hdfs dfs -put grouplens-ratings.csv
+hdfs dfs -put grouplens-genome-scores.csv
+hdfs dfs -put grouplens-genome-tags.csv

@@ -1,0 +1,52 @@
+val netflix = spark.read.format("csv").option("header", "true").load("netflix_final_data/*")
+
+/*
+
+Average Rating of Age Group for Netflix Data
+
+*/
+
+netflix.groupBy("age").count().show()
+
+
+/*
+
+Convert Motion Picture Age Guideline to TV Parental Age Guideline
+
++ Average Movie Rating of Each Converted Age Group +
+
+*/
+
+val netflixAgeAgg = (netflix.withColumn("age", when($"age" === "TV-Y7-FV", "TV-Y7")
+.when($"age" === "PG", "TV-PG")
+.when($"age" === "G", "TV-G")
+.when($"age" === "PG-13", "TV-14")
+.when($"age" === "R", "TV-MA")
+.when($"age" === "NC-17", "TV-MA")
+.when($"age" === "NR", "N/A")
+.when($"age" === "UR", "N/A")
+.otherwise($"age"))
+).groupBy("age").agg(count("age"), avg("averageRating"))
+
+netflixAgeAgg.show()
+
+// The aggreation shows that Netflix has movies that are mostly TV-MA
+
+// Save to HDFS
+netflixAgeAgg.write.option("header", "false").format("csv").save("netflix_agg_age")
+
+
+/*
+
+Explode genres for each row to aggregate based on genre
+
+*/
+
+val netflixExplodeGenre = netflix.withColumn("genres", explode(split($"genres", ",")))
+
+val netflixGenreAgg = netflixExplodeGenre.groupBy("genres").agg(count("age"), avg("averageRating"))
+
+netflixGenreAgg.collect.foreach(println)
+
+// Save to HDFS
+netflixGenreAgg.write.option("header", "false").format("csv").save("netflix_agg_genre")

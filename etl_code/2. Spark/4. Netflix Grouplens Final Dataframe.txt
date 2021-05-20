@@ -1,0 +1,27 @@
+﻿/* Load the two Netflix Grouplens Data */
+val netflixGrouplensRating = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("netflix_grouplens_rating/*")
+val netflixGrouplensGenome = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("netflix_grouplens_genome/*")
+
+
+/* Create temporary views for Spark SQL */
+netflixGrouplensRating.createOrReplaceTempView("RATING")
+netflixGrouplensGenome.createOrReplaceTempView("TAGS")
+
+
+/* Join Grouplens Rating and Genome Tables */
+val netflixGrouplensFinalDF = (spark.sql("select t.imdb_id, r.title, r.grouplens_averageRating, t.tag_id, t.tag, t.tag_relevance, t.is_original from RATING r INNER JOIN TAGS t ON r.int_imdb_id == t.int_imdb_id"))
+
+
+netflixGrouplensFinalDF.count()
+netflixGrouplensFinalDF.printSchema()
+// root
+//  |-- imdb_id: string (nullable = true)
+//  |-- title: string (nullable = true)
+//  |-- grouplens_averageRating: double (nullable = true)
+//  |-- tag_id: integer (nullable = true)
+//  |-- tag: string (nullable = true)
+//  |-- tag_relevance: double (nullable = true)
+
+
+/* Save the Final Rating/Tag Table */
+netflixGrouplensFinalDF.write.option("header", "true").format("csv").save("netflix_grouplens_final")

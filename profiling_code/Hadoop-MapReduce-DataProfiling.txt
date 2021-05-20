@@ -1,0 +1,19 @@
+# Hadoop MapReduce Commands
+
+[Profiling Data]
+
+hadoop jar CountRecs.jar CountRecs netflix_movie_and_tvshows.csv count/netflix-data
+hadoop jar CountRecs.jar CountRecs cleaned-netflix-data.csv count/cleaned-netflix-data
+
+hadoop jar CountRecs.jar CountRecs netflix_original_movie_data.csv count/netflix-original-data
+hadoop jar CountRecs.jar CountRecs cleaned-netflix-original-data.csv count/cleaned-netflix-original-data
+
+hdfs dfs -getmerge count/netflix-data/ COUNT-netflix-data
+hdfs dfs -getmerge count/cleaned-netflix-data/ COUNT-cleaned-netflix-data
+hdfs dfs -getmerge count/netflix-original-data/ COUNT-netflix-original-data
+hdfs dfs -getmerge count/cleaned-netflix-original-data/ COUNT-cleaned-netflix-original-data
+
+cat COUNT-netflix-data
+cat COUNT-netflix-original-data
+cat COUNT-cleaned-netflix-data
+cat COUNT-cleaned-netflix-original-data

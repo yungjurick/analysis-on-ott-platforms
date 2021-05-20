@@ -1,0 +1,36 @@
+/* Load Base Grouplens Data */
+val grouplensMovies = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("grouplens/grouplens-movies.csv").toDF("grouplens_movieId", "grouplens_title", "grouplens_genre")
+val grouplensRatings = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("grouplens/grouplens-ratings.csv").drop("userId", "timestamp")
+val grouplensLinks = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("grouplens/grouplens-links.csv").drop("tmdbId")
+val grouplensGenomeTags = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("grouplens/grouplens-genome-tags.csv").toDF("genomeTags_tagId", "tag")
+val grouplensGenomeScores = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("grouplens/grouplens-genome-scores.csv")
+
+/* Join Grouplens Data */
+// 1. Grouplens Movies with IMDb Links
+val moviesWithLinks = grouplensMovies.join(grouplensLinks, grouplensMovies("grouplens_movieId") === grouplensLinks("movieId"), "left").filter($"imdbId".isNotNull).drop("movieId")
+
+// 2. Grouplens Genome Scores with Tags
+val genomeScoresWithTags = grouplensGenomeScores.join(grouplensGenomeTags, grouplensGenomeScores("tagId") === grouplensGenomeTags("genomeTags_tagId"), "inner").drop("genomeTags_tagId")
+
+// 3. Grouplens Ratings of Movies
+val grouplensRatingsFinalDF = moviesWithLinks.join(grouplensRatings, moviesWithLinks("grouplens_movieId") === grouplensRatings("movieId"), "left").drop("movieId")
+
+// 4. Grouplens Genome Tag Scores linked with Movies
+val grouplensGenomeFinalDF = moviesWithLinks.join(genomeScoresWithTags, moviesWithLinks("grouplens_movieId") === genomeScoresWithTags("movieId"), "left").drop("movieId")
+
+
+/* Create temporary views for Spark SQL */
+grouplensRatingsFinalDF.createOrReplaceTempView("GROUPLENS_RATING")
+grouplensGenomeFinalDF.createOrReplaceTempView("GROUPLENS_GENOME")
+
+
+/* Join Netflix Data with Grouplens Data */
+val netflixGrouplensAverageRatings = (spark.sql("select n.int_imdb_id, n.title, gr.rating as grouplens_rating from NETFLIX n INNER JOIN GROUPLENS_RATING gr ON n.int_imdb_id == gr.imdbId"))
+	.groupBy("int_imdb_id", "title")
+	.agg(avg("grouplens_rating").as("grouplens_averageRating"))
+
+val netflixGrouplensGenome = spark.sql("select n.*, gg.tagId as tag_id, gg.tag, gg.relevance as tag_relevance from NETFLIX n INNER JOIN GROUPLENS_GENOME gg ON n.int_imdb_id == gg.imdbId")
+
+/* Write the two dataframe to HDFS before analysis */
+netflixGrouplensAverageRatings.write.option("header", "true").format("csv").save("netflix_grouplens_rating")
+netflixGrouplensGenome.write.option("header", "true").format("csv").save("netflix_grouplens_genome")

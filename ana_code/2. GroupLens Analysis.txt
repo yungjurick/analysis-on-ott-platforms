@@ -1,0 +1,38 @@
+/* Load the two Netflix Grouplens Data */
+val netflixGrouplensRating = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("netflix_grouplens_rating/*")
+val netflixGrouplensGenome = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("netflix_grouplens_genome/*")
+
+// Average Grouplens Rating for each netflix movies
+val averageGrouplensRating = netflixGrouplensRating
+	.groupBy("int_imdb_id")
+	.avg("grouplens_averageRating")
+
+averageGrouplensRating.count() // 2196
+averageGrouplensRating.show()
+
+/*
+	1. Filter Tags with relevance of at least 0.8
+	2. Aggregate base on Tag Count, Average Tag Relevance, Average of Grouplens Average Ratings
+*/
+
+val netflixTagRelevanceAgg_original = netflixGrouplensFinalDF
+	.where($"tag_relevance" >= 0.8 && $"is_original" === 1)
+	.groupBy("tag_id", "tag")
+	.agg(count("tag"), avg("tag_relevance"), avg("grouplens_averageRating"))
+	.sort(desc("count(tag)"))
+
+netflixTagRelevanceAgg_original.count() // 214
+netflixTagRelevanceAgg_original.show()
+
+val netflixTagRelevanceAgg_notOriginal = netflixGrouplensFinalDF
+	.where($"tag_relevance" >= 0.8 && $"is_original" === 0)
+	.groupBy("tag_id", "tag")
+	.agg(count("tag"), avg("tag_relevance"), avg("grouplens_averageRating"))
+	.sort(desc("count(tag)"))
+
+netflixTagRelevanceAgg_notOriginal.count() // 953
+netflixTagRelevanceAgg_notOriginal.show()
+
+// Save to HDFS
+netflixTagRelevanceAgg_original.write.option("header", "false").format("csv").save("netflix_agg_tag_relevance_original")
+netflixTagRelevanceAgg_notOriginal.write.option("header", "false").format("csv").save("netflix_agg_tag_relevance_not_original")

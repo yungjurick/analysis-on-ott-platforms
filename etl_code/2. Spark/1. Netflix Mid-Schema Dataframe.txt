@@ -1,0 +1,18 @@
+import spark.implicits._
+
+/* Load netflix movies data */
+val netflixDF = spark.read.option("inferSchema", "true").csv("cleaned-netflix-data.csv").toDF("type", "title", "director", "country", "year", "age", "runtime")
+
+/* Load netflix originals data */
+val netflixOriginalDF = spark.read.option("inferSchema", "true").csv("cleaned-netflix-original-data.csv").toDF("id", "original_title", "original_year")
+
+/* Join Netflix movies data with Netflix original movies data */
+val netflixJoined = netflixDF.join(netflixOriginalDF, netflixDF("title") === netflixOriginalDF("original_title"), "left")
+
+/* Drop unnecessary columns and add ‘is_original’ column to mark original movies */
+val netflixMid = (netflixJoined.withColumn("is_original", when($"original_title".isNull, 0).otherwise(1))
+.drop("original_title", "type", "id", "director", "country", "original_year")
+.withColumn("platform", lit("Netflix"))).na.fill("NR", Seq("age"))
+
+/* Write to HDFS */
+netflixMid.write.option("header", "true").format("csv").save("netflix_mid")

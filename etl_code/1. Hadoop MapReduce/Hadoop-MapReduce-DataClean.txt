@@ -1,0 +1,13 @@
+# Hadoop MapReduce Commands
+
+[Cleaning Data]
+
+hadoop jar NetflixClean.jar NetflixClean netflix_movie_and_tvshows.csv output/cleaned-netflix-data
+
+hdfs dfs -getmerge output/cleaned-netflix-data/ cleaned-netflix-data.csv
+hdfs dfs -put cleaned-netflix-data.csv
+
+hadoop jar NetflixOriginalClean.jar NetflixOriginalClean netflix_original_movie_data.csv output/cleaned-netflix-original-data
+
+hdfs dfs -getmerge output/cleaned-netflix-original-data/ cleaned-netflix-original-data.csv
+hdfs dfs -put cleaned-netflix-original-data.csv
